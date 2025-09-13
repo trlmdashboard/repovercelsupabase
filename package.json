@@ -1,1 +1,13 @@
-
+{
+  "name": "supabase-vercel-demo",
+  "version": "1.0.0",
+  "description": "Demo of using Supabase with Vercel environment variables",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^4.0.0"
+  }
+}
