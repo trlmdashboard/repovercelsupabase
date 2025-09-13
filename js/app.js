@@ -1,112 +1,92 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supabase with Vercel</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            margin-top: 0;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        button {
-            background-color: #3b82f6;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 500;
-        }
-        button:hover {
-            background-color: #2563eb;
-        }
-        .message {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 4px;
-            display: none;
-        }
-        .success {
-            background-color: #d1fae5;
-            color: #065f46;
-            border: 1px solid #a7f3d0;
-        }
-        .error {
-            background-color: #fee2e2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-        }
-        #data-display {
-            margin-top: 30px;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-        }
-        .data-item {
-            background: #f9fafb;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            border-left: 4px solid #3b82f6;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Supabase Data Manager</h1>
-        <p>This demo shows how to securely connect to Supabase using Vercel environment variables.</p>
-        
-        <div class="form-group">
-            <label for="name">Name</label>
-            <input type="text" id="name" placeholder="Enter your name">
-        </div>
-        
-        <div class="form-group">
-            <label for="message">Message</label>
-            <textarea id="message" rows="3" placeholder="Enter a message"></textarea>
-        </div>
-        
-        <button onclick="saveData()">Save to Supabase</button>
-        <button onclick="loadData()" style="background-color: #6b7280;">Load Data</button>
-        
-        <div id="message-area"></div>
-        
-        <div id="data-display">
-            <h2>Stored Data</h2>
-            <div id="data-container"></div>
-        </div>
-    </div>
+// Initialize Supabase client with keys from environment variables
+// In production, these will be provided by Vercel
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || window.env.SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || window.env.SUPABASE_ANON_KEY;
 
-    <script src="js/app.js"></script>
-</body>
-</html>
+// Create Supabase client
+const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+// Function to display messages to user
+function showMessage(message, type = 'success') {
+    const messageArea = document.getElementById('message-area');
+    messageArea.innerHTML = `
+        <div class="message ${type}">
+            ${message}
+        </div>
+    `;
+    messageArea.style.display = 'block';
+    
+    // Hide message after 5 seconds
+    setTimeout(() => {
+        messageArea.style.display = 'none';
+    }, 5000);
+}
+
+// Save data to Supabase
+async function saveData() {
+    const name = document.getElementById('name').value;
+    const message = document.getElementById('message').value;
+    
+    if (!name || !message) {
+        showMessage('Please fill in all fields', 'error');
+        return;
+    }
+    
+    try {
+        const { data, error } = await supabase
+            .from('messages')
+            .insert([{ name, message }])
+            .select();
+            
+        if (error) {
+            throw error;
+        }
+        
+        showMessage('Data saved successfully!');
+        document.getElementById('name').value = '';
+        document.getElementById('message').value = '';
+        
+        // Refresh the data display
+        loadData();
+    } catch (error) {
+        console.error('Error saving data:', error);
+        showMessage('Error saving data: ' + error.message, 'error');
+    }
+}
+
+// Load data from Supabase
+async function loadData() {
+    try {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            throw error;
+        }
+        
+        const container = document.getElementById('data-container');
+        
+        if (data.length === 0) {
+            container.innerHTML = '<p>No data found.</p>';
+            return;
+        }
+        
+        container.innerHTML = data.map(item => `
+            <div class="data-item">
+                <strong>${item.name}</strong>
+                <p>${item.message}</p>
+                <small>${new Date(item.created_at).toLocaleString()}</small>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading data:', error);
+        showMessage('Error loading data: ' + error.message, 'error');
+    }
+}
+
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadData();
+});
